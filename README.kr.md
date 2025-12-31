@@ -63,8 +63,11 @@ go build -o orga
 # 대상 디렉토리와 모델 지정
 ./orga -target ~/Downloads -model gemma3:4b
 
-# 대상 디렉토리의 파일을 용량 순 트리 구조로 출력
+# 대상 디렉토리의 파일을 용량 순 리스트(절대 경로)로 출력
 ./orga -list -target ~/Downloads
+
+# 대상 디렉토리의 파일을 용량 순 트리 구조로 출력
+./orga -list -T -target ~/Downloads
 
 # 숨김 파일을 포함하여 리스트 출력
 ./orga -list -H
@@ -75,5 +78,6 @@ go build -o orga
 - `-target`: 스캔할 디렉토리 (기본값 ".")
 - `-output`: 결과 파일이 저장될 디렉토리 (기본값 "{target}/organized")
 - `-model`: 사용할 Ollama 모델명 (기본값 "gemma3n:e4b")
-- `-list`: 대상 디렉토리의 파일을 용량별로 정렬하여 트리 구조로 출력
+- `-list`: 대상 디렉토리의 파일을 용량별로 정렬하여 출력
+- `-T`: 파일 리스트를 트리 구조로 표시 (-list와 함께 사용)
 - `-H`: 리스트 모드에서 숨김 파일 표시

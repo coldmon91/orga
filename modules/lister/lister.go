@@ -9,14 +9,83 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 )
 
-// ListFilesBySize walks the directory tree rooted at root,
-// and prints them in a tree structure, sorted by size (descending) at each level.
-func ListFilesBySize(root string, showHidden bool) error {
-	// Print root
-	fmt.Println(root)
-	return visitDir(root, "", showHidden)
+type FileInfo struct {
+	Path string
+	Size int64
+}
+
+// ListFilesBySize lists files. If useTree is true, it prints a tree structure.
+// Otherwise, it prints a flat list with absolute paths.
+// Files are sorted by size (descending).
+func ListFilesBySize(root string, showHidden bool, useTree bool) error {
+	if useTree {
+		fmt.Println(root)
+		return visitDir(root, "", showHidden)
+	}
+	return listFlat(root, showHidden)
+}
+
+func listFlat(root string, showHidden bool) error {
+	var files []FileInfo
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if os.IsPermission(err) {
+				return nil
+			}
+			return err
+		}
+		
+		if !showHidden && strings.HasPrefix(d.Name(), ".") && path != root {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		var size int64
+		if d.IsDir() {
+			s, err := getDirSize(path)
+			if err != nil {
+				size = 0
+			} else {
+				size = s
+			}
+		} else {
+			info, err := d.Info()
+			if err != nil {
+				return nil
+			}
+			size = info.Size()
+		}
+
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			absPath = path
+		}
+		files = append(files, FileInfo{Path: absPath, Size: size})
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Sort descending
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Size > files[j].Size
+	})
+
+	// Print
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "SIZE\tPATH")
+	for _, f := range files {
+		fmt.Fprintf(w, "%s\t%s\n", formatSize(f.Size), f.Path)
+	}
+	w.Flush()
+	return nil
 }
 
 func visitDir(path string, prefix string, showHidden bool) error {
@@ -38,8 +107,6 @@ func visitDir(path string, prefix string, showHidden bool) error {
 		if e.IsDir() {
 			s, err := getDirSize(fullPath)
 			if err != nil {
-				// Fallback to 0 or continue?
-				// Just continue with 0 size if du fails (e.g. permission)
 				size = 0
 			} else {
 				size = s

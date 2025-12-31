@@ -25,6 +25,7 @@ var (
 	modelName  string
 	listMode   bool
 	showHidden bool
+	useTree    bool
 )
 
 // Categories
@@ -56,6 +57,7 @@ func main() {
 	flag.StringVar(&modelName, "model", "gemma3n:e4b", "Ollama model name")
 	flag.BoolVar(&listMode, "list", false, "List files in target directory sorted by size")
 	flag.BoolVar(&showHidden, "H", false, "Show hidden files in list mode")
+	flag.BoolVar(&useTree, "T", false, "Show file list as a tree structure")
 	flag.Parse()
 
 	// Validate directories
@@ -68,7 +70,7 @@ func main() {
 
 	if listMode {
 		fmt.Printf("Listing files in %s sorted by size...\n", targetDir)
-		if err := lister.ListFilesBySize(targetDir, showHidden); err != nil {
+		if err := lister.ListFilesBySize(targetDir, showHidden, useTree); err != nil {
 			fmt.Printf("Error listing files: %v\n", err)
 			os.Exit(1)
 		}
