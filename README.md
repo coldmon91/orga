@@ -1,35 +1,62 @@
 # Orga
 
-## 개요
+[한국어 버전 (Korean)](README.kr.md)
 
-- 로컬 LLM 을 이용한 파일 관리 도구
-- 파일의 이름을 보고 어떤 종류의 파일인지 분류한다.
-- 분류된 파일을 지정된 디렉토리로 이동시킨다. (move)
+## Overview
 
-## 변수
+- A file management tool using local LLMs.
+- Classifies files based on their names to determine their type.
+- Moves classified files to designated directories.
 
-- target_dir : 파일을 분류할 대상 디렉토리 경로 (기본값 : 현재 디렉토리)
-- output_dir : 분류된 파일이 옮겨 질 디렉토리 경로 (기본값 : {target_dir}/organized)
+## Variables
 
-## LLM 설정
+- `target_dir`: The directory path to scan for files (Default: current directory).
+- `output_dir`: The directory path where organized files will be moved (Default: `{target_dir}/organized`).
 
-- 파일 검색 도구 : `fd` 명령어 사용
-- 문자열 검색 도구 : `rg` 명령어 사용
-- llm model 기본값: 'gemma3n:e4b'
+## LLM Configuration
 
-## 파일의 종류
+- File Search Tool: Uses the `fd` command.
+- String Search Tool: Uses the `rg` command.
+- Default Model: `gemma3n:e4b` (via Ollama).
 
-- 문서 파일 (예: .docx, .pdf, .txt) : {output_dir}/documents
-- 이미지 파일: {output_dir}/images
-- 동영상 파일: {output_dir}/videos
-- 오디오 파일: {output_dir}/audio
-- 압축 파일: {output_dir}/archives
-- 실행 파일: {output_dir}/executables
-- 설치 파일: {output_dir}/installers
-- 기타 파일: {output_dir}/others
+## File Categories
 
-## 기본 동작
+- Documents (e.g., .docx, .pdf, .txt): `{output_dir}/documents`
+- Images: `{output_dir}/images`
+- Videos: `{output_dir}/videos`
+- Audio: `{output_dir}/audio`
+- Archives: `{output_dir}/archives`
+- Executables: `{output_dir}/executables`
+- Installers: `{output_dir}/installers`
+- Others: `{output_dir}/others`
 
-- {target_dir} 내의 모든 파일을 검색한다.
-- 각 파일의 이름을 LLM에 전달하여 파일의 {output_dir}을 찾는다.
-- 분류된 파일을 {output_dir}의 해당하는 폴더로 이동시킨다.
+## Basic Operation
+
+1. Scans all files within the `{target_dir}`.
+2. Sends each file name to the LLM to identify the appropriate category.
+3. Moves the file to the corresponding folder under `{output_dir}`.
+
+## Installation
+
+Ensure you have [Go](https://go.dev/), [fd](https://github.com/sharkdp/fd), and [Ollama](https://ollama.com/) installed.
+
+```bash
+# Build the project
+go build -o orga
+```
+
+## Usage
+
+```bash
+# Organize current directory using default model
+./orga
+
+# Specify target directory and model
+./orga -target ~/Downloads -model gemma3:4b
+```
+
+## Arguments
+
+- `-target`: Directory to scan (default ".")
+- `-output`: Output directory (default "{target}/organized")
+- `-model`: Ollama model name (default "gemma3n:e4b")
