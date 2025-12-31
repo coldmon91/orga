@@ -26,6 +26,7 @@ var (
 	listMode   bool
 	showHidden bool
 	useTree    bool
+	recursive  bool
 )
 
 // Categories
@@ -58,6 +59,7 @@ func main() {
 	flag.BoolVar(&listMode, "list", false, "List files in target directory sorted by size")
 	flag.BoolVar(&showHidden, "H", false, "Show hidden files in list mode")
 	flag.BoolVar(&useTree, "T", false, "Show file list as a tree structure")
+	flag.BoolVar(&recursive, "R", false, "Recursively scan subdirectories")
 	flag.Parse()
 
 	// Validate directories
@@ -145,6 +147,11 @@ func findFiles() ([]string, error) {
 	}
 
 	cmd := exec.Command("fd", "--type", "f", "--absolute-path", ".", targetDir)
+	
+	if !recursive {
+		cmd.Args = append(cmd.Args, "--max-depth", "1")
+	}
+
 	// Exclude the output directory to prevent loops
 	// fd accepts patterns to exclude. We exclude the relative path of outputDir from targetDir if possible, 
 	// or just the full path name if valid. 
