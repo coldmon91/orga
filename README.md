@@ -86,6 +86,7 @@ go build -o orga
 - `-target`: Directory to scan (default ".")
 - `-output`: Output directory (default "{target}/organized")
 - `-model`: Ollama model name (default "gemma3n:e4b")
+- `-R`: Recursively scan subdirectories (default false)
 - `-list`: List files in target directory sorted by size
 - `-T`: Show file list as a tree structure (use with -list)
 - `-H`: Show hidden files in list mode
