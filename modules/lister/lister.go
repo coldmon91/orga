@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -29,11 +31,28 @@ func visitDir(path string, prefix string, showHidden bool) error {
 		if !showHidden && strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
-		info, err := e.Info()
-		if err != nil {
-			continue
+		
+		var size int64
+		fullPath := filepath.Join(path, e.Name())
+
+		if e.IsDir() {
+			s, err := getDirSize(fullPath)
+			if err != nil {
+				// Fallback to 0 or continue?
+				// Just continue with 0 size if du fails (e.g. permission)
+				size = 0
+			} else {
+				size = s
+			}
+		} else {
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			size = info.Size()
 		}
-		visible = append(visible, entryInfo{entry: e, size: info.Size()})
+		
+		visible = append(visible, entryInfo{entry: e, size: size})
 	}
 
 	// Sort by size descending
@@ -66,6 +85,28 @@ func visitDir(path string, prefix string, showHidden bool) error {
 type entryInfo struct {
 	entry fs.DirEntry
 	size  int64
+}
+
+// getDirSize returns the size of a directory in bytes using du -sk
+func getDirSize(path string) (int64, error) {
+	cmd := exec.Command("du", "-sk", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+	
+	// Output format: "size_in_kbytes\tpath\n"
+	fields := strings.Fields(string(out))
+	if len(fields) < 1 {
+		return 0, fmt.Errorf("unexpected output from du")
+	}
+	
+	kb, err := strconv.ParseInt(fields[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	
+	return kb * 1024, nil
 }
 
 func formatSize(bytes int64) string {
