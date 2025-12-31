@@ -1,6 +1,6 @@
 # Orga
 
-[English Version](README.en.md) | [한국어 버전 (Korean)](README.kr.md)
+[한국어 (Korean)](README.kr.md)
 
 ## Overview
 
@@ -40,12 +40,29 @@
 
 Ensure you have [Go](https://go.dev/), [fd](https://github.com/sharkdp/fd), and [Ollama](https://ollama.com/) installed.
 
+### Prerequisites
+
+#### Go
+Download and install from [go.dev/doc/install](https://go.dev/doc/install).
+
+#### fd (fd-find)
+- **macOS**: `brew install fd`
+- **Ubuntu/Debian**: `sudo apt install fd-find` (Note: executable may be named `fdfind`, the tool expects `fd`)
+- **Windows**: `winget install sharkdp.fd`
+
+#### Ollama
+Download and install from [ollama.com](https://ollama.com/). After installation, pull the required model:
 ```bash
-# Build the project
+ollama pull gemma3n:e4b
+```
+
+### Build the project
+
+```bash
 go build -o orga
 ```
 
-## Usage
+# Usage
 
 ```bash
 # Organize current directory using default model
@@ -53,6 +70,15 @@ go build -o orga
 
 # Specify target directory and model
 ./orga -target ~/Downloads -model gemma3:4b
+
+# List files in target directory sorted by size (absolute paths)
+./orga -list -target ~/Downloads
+
+# List files in a tree structure
+./orga -list -T -target ~/Downloads
+
+# List files including hidden files
+./orga -list -H
 ```
 
 ## Arguments
@@ -60,3 +86,6 @@ go build -o orga
 - `-target`: Directory to scan (default ".")
 - `-output`: Output directory (default "{target}/organized")
 - `-model`: Ollama model name (default "gemma3n:e4b")
+- `-list`: List files in target directory sorted by size
+- `-T`: Show file list as a tree structure (use with -list)
+- `-H`: Show hidden files in list mode
