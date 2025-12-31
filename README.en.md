@@ -68,6 +68,12 @@ go build -o orga
 
 # Specify target directory and model
 ./orga -target ~/Downloads -model gemma3:4b
+
+# List files in target directory sorted by size in a tree structure
+./orga -list -target ~/Downloads
+
+# List files including hidden files
+./orga -list -H
 ```
 
 ## Arguments
@@ -75,3 +81,5 @@ go build -o orga
 - `-target`: Directory to scan (default ".")
 - `-output`: Output directory (default "{target}/organized")
 - `-model`: Ollama model name (default "gemma3n:e4b")
+- `-list`: List files in target directory sorted by size (tree structure)
+- `-H`: Show hidden files in list mode

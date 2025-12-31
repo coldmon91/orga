@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"orga/modules/lister"
 )
 
 // Configuration
@@ -18,9 +20,11 @@ const (
 )
 
 var (
-	targetDir string
-	outputDir string
-	modelName string
+	targetDir  string
+	outputDir  string
+	modelName  string
+	listMode   bool
+	showHidden bool
 )
 
 // Categories
@@ -50,6 +54,8 @@ func main() {
 	flag.StringVar(&targetDir, "target", ".", "Target directory to scan")
 	flag.StringVar(&outputDir, "output", "", "Output directory for organized files (default: {target}/organized)")
 	flag.StringVar(&modelName, "model", "gemma3n:e4b", "Ollama model name")
+	flag.BoolVar(&listMode, "list", false, "List files in target directory sorted by size")
+	flag.BoolVar(&showHidden, "H", false, "Show hidden files in list mode")
 	flag.Parse()
 
 	// Validate directories
@@ -58,6 +64,15 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error resolving target directory: %v\n", err)
 		os.Exit(1)
+	}
+
+	if listMode {
+		fmt.Printf("Listing files in %s sorted by size...\n", targetDir)
+		if err := lister.ListFilesBySize(targetDir, showHidden); err != nil {
+			fmt.Printf("Error listing files: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	if outputDir == "" {
