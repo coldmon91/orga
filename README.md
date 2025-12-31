@@ -1,6 +1,6 @@
 # Orga
 
-[한국어 버전 (Korean)](README.kr.md)
+[English Version](README.en.md) | [한국어 버전 (Korean)](README.kr.md)
 
 ## Overview
 
