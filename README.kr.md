@@ -28,8 +28,30 @@
 - 설치 파일: {output_dir}/installers
 - 기타 파일: {output_dir}/others
 
-## 기본 동작
+## 설치 방법
 
-- {target_dir} 내의 모든 파일을 검색한다.
-- 각 파일의 이름을 LLM에 전달하여 파일의 {output_dir}을 찾는다.
-- 분류된 파일을 {output_dir}의 해당하는 폴더로 이동시킨다.
+이 도구를 사용하려면 [Go](https://go.dev/), [fd](https://github.com/sharkdp/fd), 그리고 [Ollama](https://ollama.com/)가 설치되어 있어야 합니다.
+
+### 사전 준비
+
+#### Go
+[go.dev/doc/install](https://go.dev/doc/install)에서 다운로드하여 설치하세요.
+
+#### fd (fd-find)
+- **macOS**: `brew install fd`
+- **Ubuntu/Debian**: `sudo apt install fd-find` (주의: 실행 파일 이름이 `fdfind`일 수 있습니다. 본 도구는 `fd`를 호출합니다.)
+- **Windows**: `winget install sharkdp.fd`
+
+#### Ollama
+[ollama.com](https://ollama.com/)에서 다운로드하여 설치하세요. 설치 후 필요한 모델을 다운로드합니다:
+```bash
+ollama pull gemma3n:e4b
+```
+
+### 프로젝트 빌드
+
+```bash
+go build -o orga
+```
+
+## 사용 방법

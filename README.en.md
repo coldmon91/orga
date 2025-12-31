@@ -38,8 +38,25 @@
 
 Ensure you have [Go](https://go.dev/), [fd](https://github.com/sharkdp/fd), and [Ollama](https://ollama.com/) installed.
 
+### Prerequisites
+
+#### Go
+Download and install from [go.dev/doc/install](https://go.dev/doc/install).
+
+#### fd (fd-find)
+- **macOS**: `brew install fd`
+- **Ubuntu/Debian**: `sudo apt install fd-find` (Note: executable may be named `fdfind`, the tool expects `fd`)
+- **Windows**: `winget install sharkdp.fd`
+
+#### Ollama
+Download and install from [ollama.com](https://ollama.com/). After installation, pull the required model:
 ```bash
-# Build the project
+ollama pull gemma3n:e4b
+```
+
+### Build the project
+
+```bash
 go build -o orga
 ```
 
