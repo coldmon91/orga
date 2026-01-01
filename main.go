@@ -27,6 +27,7 @@ var (
 	showHidden bool
 	useTree    bool
 	recursive  bool
+	verbose    bool
 )
 
 // Categories
@@ -60,6 +61,7 @@ func main() {
 	flag.BoolVar(&showHidden, "H", false, "Show hidden files in list mode")
 	flag.BoolVar(&useTree, "T", false, "Show file list as a tree structure")
 	flag.BoolVar(&recursive, "R", false, "Recursively scan subdirectories")
+	flag.BoolVar(&verbose, "v", false, "Show verbose debugging logs")
 	flag.Parse()
 
 	// Validate directories
@@ -68,6 +70,10 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error resolving target directory: %v\n", err)
 		os.Exit(1)
+	}
+
+	if verbose {
+		fmt.Printf("[DEBUG] Target directory resolved to: %s\n", targetDir)
 	}
 
 	if listMode {
@@ -87,6 +93,10 @@ func main() {
 			fmt.Printf("Error resolving output directory: %v\n", err)
 			os.Exit(1)
 		}
+	}
+
+	if verbose {
+		fmt.Printf("[DEBUG] Output directory resolved to: %s\n", outputDir)
 	}
 
 	fmt.Printf("Target Directory: %s\n", targetDir)
@@ -110,13 +120,29 @@ func main() {
 
 	// Process files
 	for _, file := range files {
-		// Skip files inside the output directory to avoid re-processing
-		if strings.HasPrefix(file, outputDir) {
+		// Skip files that are already inside one of our category directories
+		isAlreadyOrganized := false
+		for _, cat := range categories {
+			catDir := filepath.Join(outputDir, cat)
+			rel, err := filepath.Rel(catDir, file)
+			if err == nil && !strings.HasPrefix(rel, "..") && rel != ".." {
+				isAlreadyOrganized = true
+				break
+			}
+		}
+
+		if isAlreadyOrganized {
+			if verbose {
+				fmt.Printf("[DEBUG] Skipping already organized file: %s\n", file)
+			}
 			continue
 		}
 		
-		// Skip the executable itself if it's in the list (unlikely with fd defaults but possible)
+		// Skip the executable itself
 		if filepath.Base(file) == os.Args[0] {
+			if verbose {
+				fmt.Printf("[DEBUG] Skipping current executable: %s\n", file)
+			}
 			continue
 		}
 
@@ -127,6 +153,9 @@ func main() {
 func createDirectories() error {
 	for _, cat := range categories {
 		path := filepath.Join(outputDir, cat)
+		if verbose {
+			fmt.Printf("[DEBUG] Ensuring directory exists: %s\n", path)
+		}
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return err
 		}
@@ -153,14 +182,14 @@ func findFiles() ([]string, error) {
 	}
 
 	// Exclude the output directory to prevent loops
-	// fd accepts patterns to exclude. We exclude the relative path of outputDir from targetDir if possible, 
-	// or just the full path name if valid. 
-	// Simpler is to use --exclude pattern.
-	
 	relOutput, err := filepath.Rel(targetDir, outputDir)
 	if err == nil && !strings.HasPrefix(relOutput, "..") {
 		// outputDir is inside targetDir
 		cmd.Args = append(cmd.Args, "--exclude", relOutput)
+	}
+
+	if verbose {
+		fmt.Printf("[DEBUG] Running command: %s %s\n", cmd.Path, strings.Join(cmd.Args[1:], " "))
 	}
 
 	output, err := cmd.Output()
@@ -197,6 +226,9 @@ func processFile(path string) {
 		}
 	}
 	if !valid {
+		if verbose {
+			fmt.Printf("[DEBUG] Invalid category received: %q. Defaulting to 'others'.\n", category)
+		}
 		category = "others"
 	}
 
@@ -206,6 +238,10 @@ func processFile(path string) {
 
 	// Handle duplicate filenames
 	destPath = ensureUniquePath(destPath)
+
+	if verbose && destPath != filepath.Join(destDir, filename) {
+		fmt.Printf("[DEBUG] Filename conflict. Renamed to: %s\n", filepath.Base(destPath))
+	}
 
 	err = os.Rename(path, destPath)
 	if err != nil {
@@ -246,6 +282,10 @@ Rules:
 		return "", err
 	}
 
+	if verbose {
+		fmt.Printf("[DEBUG] Requesting classification for %q from Ollama (%s)...\n", filename, OllamaURL)
+	}
+
 	resp, err := http.Post(OllamaURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
@@ -261,12 +301,21 @@ Rules:
 		return "", err
 	}
 
-	return strings.TrimSpace(strings.ToLower(ollamaResp.Response)), nil
+	rawResponse := strings.TrimSpace(ollamaResp.Response)
+	if verbose {
+		fmt.Printf("[DEBUG] Ollama raw response: %q\n", rawResponse)
+	}
+
+	return strings.ToLower(rawResponse), nil
 }
 
 func ensureUniquePath(path string) string {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path
+	}
+
+	if verbose {
+		fmt.Printf("[DEBUG] File already exists at destination: %s\n", path)
 	}
 
 	dir := filepath.Dir(path)
