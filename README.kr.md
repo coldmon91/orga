@@ -5,17 +5,20 @@
 - 로컬 LLM 을 이용한 파일 관리 도구
 - 파일의 이름을 보고 어떤 종류의 파일인지 분류한다.
 - 분류된 파일을 지정된 디렉토리로 이동시킨다. (move)
+- 바로 아래 하위 디렉토리는 이름으로 분류해 통째로 이동한다. 이름만으로 판단이 어려우면 내부 파일(최대 20개, 깊이 2)을 참고한다. `-R` 사용 시에는 파일 단위로 정리한다.
 
 ## 변수
 
 - target_dir : 파일을 분류할 대상 디렉토리 경로 (기본값 : 현재 디렉토리)
-- output_dir : 분류된 파일이 옮겨 질 디렉토리 경로 (기본값 : {target_dir}/organized)
+- output_dir : 분류된 파일이 옮겨 질 디렉토리 경로 (기본값 : {target_dir}/orga)
 
 ## LLM 설정
 
 - 파일 검색 도구 : `fd` 명령어 사용
 - 문자열 검색 도구 : `rg` 명령어 사용
-- llm model 기본값: 'gemma3n:e4b'
+- 분류 backend: `ollama` (기본값, 로컬) 또는 `jev` (TypeSafe API, 파일·디렉토리 이름이 외부 서비스로 전송됨)
+- llm model 기본값: ollama 는 'gemma3n:e4b', jev 는 'jev-latest'
+- jev 사용 시 `TYPESAFE_API_KEY` 필요. 환경 변수 또는 작업 디렉토리·실행 파일 옆의 `.env` 파일에서 읽음
 
 ## 파일의 종류
 
@@ -63,6 +66,9 @@ go build -o orga
 # 대상 디렉토리와 모델 지정
 ./orga -target ~/Downloads -model gemma3:4b
 
+# TypeSafe Jev 로 분류 (TYPESAFE_API_KEY 필요)
+./orga -backend jev -target ~/Downloads
+
 # 대상 디렉토리의 파일을 용량 순 리스트(절대 경로)로 출력
 ./orga -list -target ~/Downloads
 
@@ -76,8 +82,9 @@ go build -o orga
 ## 인자 (Arguments)
 
 - `-target`: 스캔할 디렉토리 (기본값 ".")
-- `-output`: 결과 파일이 저장될 디렉토리 (기본값 "{target}/organized")
-- `-model`: 사용할 Ollama 모델명 (기본값 "gemma3n:e4b")
+- `-output`: 결과 파일이 저장될 디렉토리 (기본값 "{target}/orga")
+- `-backend`: 분류 backend, `ollama` 또는 `jev` (기본값 "ollama")
+- `-model`: 사용할 모델명 (기본값 ollama 는 "gemma3n:e4b", jev 는 "jev-latest")
 - `-R`: 하위 디렉토리를 재귀적으로 스캔 (기본값 false)
 - `-list`: 대상 디렉토리의 파일을 용량별로 정렬하여 출력
 - `-T`: 파일 리스트를 트리 구조로 표시 (-list와 함께 사용)

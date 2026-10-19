@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,14 +11,10 @@ import (
 	"orga/modules/lister"
 )
 
-// Configuration
-const (
-	OllamaURL = "http://localhost:11434/api/generate"
-)
-
 var (
 	targetDir  string
 	outputDir  string
+	backend    string
 	modelName  string
 	listMode   bool
 	showHidden bool
@@ -30,33 +23,12 @@ var (
 	verbose    bool
 )
 
-// Categories
-var categories = []string{
-	"documents",
-	"images",
-	"videos",
-	"audio",
-	"archives",
-	"executables",
-	"installers",
-	"others",
-}
-
-type OllamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-type OllamaResponse struct {
-	Response string `json:"response"`
-}
-
 func main() {
 	// Parse arguments
 	flag.StringVar(&targetDir, "target", ".", "Target directory to scan")
-	flag.StringVar(&outputDir, "output", "", "Output directory for organized files (default: {target}/organized)")
-	flag.StringVar(&modelName, "model", "gemma3n:e4b", "Ollama model name")
+	flag.StringVar(&outputDir, "output", "", "Output directory for organized files (default: {target}/orga)")
+	flag.StringVar(&backend, "backend", "ollama", "Classification backend: ollama (local) or jev (TypeSafe API)")
+	flag.StringVar(&modelName, "model", "", "Model name (default: "+ollamaDefaultModel+" for ollama, "+jevDefaultModel+" for jev)")
 	flag.BoolVar(&listMode, "list", false, "List files in target directory sorted by size")
 	flag.BoolVar(&showHidden, "H", false, "Show hidden files in list mode")
 	flag.BoolVar(&useTree, "T", false, "Show file list as a tree structure")
@@ -86,7 +58,7 @@ func main() {
 	}
 
 	if outputDir == "" {
-		outputDir = filepath.Join(targetDir, "organized")
+		outputDir = filepath.Join(targetDir, "orga")
 	} else {
 		outputDir, err = filepath.Abs(outputDir)
 		if err != nil {
@@ -99,24 +71,42 @@ func main() {
 		fmt.Printf("[DEBUG] Output directory resolved to: %s\n", outputDir)
 	}
 
+	classifier, modelName, err = newClassifier(backend, modelName)
+	if err != nil {
+		fmt.Printf("Error setting up classifier: %v\n", err)
+		os.Exit(1)
+	}
+
 	fmt.Printf("Target Directory: %s\n", targetDir)
 	fmt.Printf("Output Directory: %s\n", outputDir)
+	fmt.Printf("Backend: %s\n", backend)
 	fmt.Printf("Model: %s\n", modelName)
 
-	// Create output directories
-	if err := createDirectories(); err != nil {
-		fmt.Printf("Error creating directories: %v\n", err)
+	// Category directories are created on demand, so only check for a conflicting path here
+	if err := validateOutputDir(); err != nil {
+		fmt.Printf("Error checking output directory: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Find files using fd
-	files, err := findFiles()
+	files, err := findEntries("f")
 	if err != nil {
 		fmt.Printf("Error finding files: %v\n", err)
 		os.Exit(1)
 	}
 
 	fmt.Printf("Found %d files.\n", len(files))
+
+	// Recursive mode organizes files individually, so subdirectories are moved only in flat mode
+	var dirs []string
+	if !recursive {
+		dirs, err = findEntries("d")
+		if err != nil {
+			fmt.Printf("Error finding directories: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Found %d directories.\n", len(dirs))
+	}
 
 	// Process files
 	for _, file := range files {
@@ -146,38 +136,49 @@ func main() {
 			continue
 		}
 
-		processFile(file)
+		processEntry(file, false)
+	}
+
+	for _, dir := range dirs {
+		// Moving a directory that holds the output directory would relocate the output itself
+		if rel, err := filepath.Rel(dir, outputDir); err == nil && !strings.HasPrefix(rel, "..") {
+			if verbose {
+				fmt.Printf("[DEBUG] Skipping directory containing output: %s\n", dir)
+			}
+			continue
+		}
+
+		processEntry(dir, true)
 	}
 }
 
-func createDirectories() error {
-	for _, cat := range categories {
-		path := filepath.Join(outputDir, cat)
-		if verbose {
-			fmt.Printf("[DEBUG] Ensuring directory exists: %s\n", path)
-		}
-		if err := os.MkdirAll(path, 0755); err != nil {
-			return err
-		}
+// validateOutputDir fails early when outputDir exists but is not a directory.
+func validateOutputDir() error {
+	info, err := os.Stat(outputDir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s exists and is not a directory", outputDir)
 	}
 	return nil
 }
 
-func findFiles() ([]string, error) {
-	// fd command to find files. 
-	// -t f: files only
-	// --absolute-path: return absolute paths
-	// We scan the targetDir
-	
+// findEntries lists entries of entryType ("f" for files, "d" for directories) using fd.
+// Directories are always limited to the top level since they are moved as a whole.
+func findEntries(entryType string) ([]string, error) {
 	// Check if fd is installed
 	_, err := exec.LookPath("fd")
 	if err != nil {
 		return nil, fmt.Errorf("fd command not found. Please install fd-find")
 	}
 
-	cmd := exec.Command("fd", "--type", "f", "--absolute-path", ".", targetDir)
-	
-	if !recursive {
+	cmd := exec.Command("fd", "--type", entryType, "--absolute-path", ".", targetDir)
+
+	if !recursive || entryType == "d" {
 		cmd.Args = append(cmd.Args, "--max-depth", "1")
 	}
 
@@ -201,31 +202,30 @@ func findFiles() ([]string, error) {
 	var result []string
 	for _, line := range lines {
 		if line != "" {
-			result = append(result, line)
+			// fd appends a trailing separator to directories
+			result = append(result, filepath.Clean(line))
 		}
 	}
 	return result, nil
 }
 
-func processFile(path string) {
+func processEntry(path string, isDir bool) {
 	filename := filepath.Base(path)
 	fmt.Printf("Processing: %s ... ", filename)
 
-	category, err := classifyFile(filename)
+	var category string
+	var err error
+	if isDir {
+		category, err = classifyDir(path)
+	} else {
+		category, err = classifyFile(filename)
+	}
 	if err != nil {
 		fmt.Printf("Error classifying: %v\n", err)
 		return
 	}
 
-	// Validate category
-	valid := false
-	for _, c := range categories {
-		if c == category {
-			valid = true
-			break
-		}
-	}
-	if !valid {
+	if !isValidCategory(category) {
 		if verbose {
 			fmt.Printf("[DEBUG] Invalid category received: %q. Defaulting to 'others'.\n", category)
 		}
@@ -235,6 +235,14 @@ func processFile(path string) {
 	// Move file
 	destDir := filepath.Join(outputDir, category)
 	destPath := filepath.Join(destDir, filename)
+
+	if verbose {
+		fmt.Printf("[DEBUG] Ensuring directory exists: %s\n", destDir)
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		return
+	}
 
 	// Handle duplicate filenames
 	destPath = ensureUniquePath(destPath)
@@ -249,64 +257,6 @@ func processFile(path string) {
 	} else {
 		fmt.Printf("-> %s/%s\n", category, filepath.Base(destPath))
 	}
-}
-
-func classifyFile(filename string) (string, error) {
-	prompt := fmt.Sprintf(`You are a file organization assistant.
-Classify the following file into exactly one of these categories:
-- documents
-- images
-- videos
-- audio
-- archives
-- executables
-- installers
-- others
-
-Filename: "%s"
-
-Rules:
-1. Reply ONLY with the category name in lowercase.
-2. Do not add any punctuation or explanation.
-3. If unsure, use "others".
-
-	Category:`, filename)
-
-	reqBody := OllamaRequest{
-		Model:  modelName,
-		Prompt: prompt,
-		Stream: false,
-	}
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", err
-	}
-
-	if verbose {
-		fmt.Printf("[DEBUG] Requesting classification for %q from Ollama (%s)...\n", filename, OllamaURL)
-	}
-
-	resp, err := http.Post(OllamaURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ollama API returned status: %s", resp.Status)
-	}
-
-	var ollamaResp OllamaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		return "", err
-	}
-
-	rawResponse := strings.TrimSpace(ollamaResp.Response)
-	if verbose {
-		fmt.Printf("[DEBUG] Ollama raw response: %q\n", rawResponse)
-	}
-
-	return strings.ToLower(rawResponse), nil
 }
 
 func ensureUniquePath(path string) string {

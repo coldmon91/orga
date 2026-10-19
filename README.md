@@ -7,17 +7,20 @@
 - A file management tool using local LLMs.
 - Classifies files based on their names to determine their type.
 - Moves classified files to designated directories.
+- Top-level subdirectories are classified by name and moved as a whole; when the name is inconclusive, a sample of up to 20 files inside (2 levels deep) is used. With `-R`, files are organized individually instead.
 
 ## Variables
 
 - `target_dir`: The directory path to scan for files (Default: current directory).
-- `output_dir`: The directory path where organized files will be moved (Default: `{target_dir}/organized`).
+- `output_dir`: The directory path where organized files will be moved (Default: `{target_dir}/orga`).
 
 ## LLM Configuration
 
 - File Search Tool: Uses the `fd` command.
 - String Search Tool: Uses the `rg` command.
-- Default Model: `gemma3n:e4b` (via Ollama).
+- Backends: `ollama` (default, local) or `jev` (TypeSafe API, sends file and directory names to an external service).
+- Default Model: `gemma3n:e4b` for Ollama, `jev-latest` for Jev.
+- Jev requires `TYPESAFE_API_KEY`, read from the environment or a `.env` file in the working directory or next to the executable.
 
 ## File Categories
 
@@ -71,6 +74,9 @@ go build -o orga
 # Specify target directory and model
 ./orga -target ~/Downloads -model gemma3:4b
 
+# Classify with TypeSafe Jev (requires TYPESAFE_API_KEY)
+./orga -backend jev -target ~/Downloads
+
 # List files in target directory sorted by size (absolute paths)
 ./orga -list -target ~/Downloads
 
@@ -84,8 +90,9 @@ go build -o orga
 ## Arguments
 
 - `-target`: Directory to scan (default ".")
-- `-output`: Output directory (default "{target}/organized")
-- `-model`: Ollama model name (default "gemma3n:e4b")
+- `-output`: Output directory (default "{target}/orga")
+- `-backend`: Classification backend, `ollama` or `jev` (default "ollama")
+- `-model`: Model name (default "gemma3n:e4b" for ollama, "jev-latest" for jev)
 - `-R`: Recursively scan subdirectories (default false)
 - `-list`: List files in target directory sorted by size
 - `-T`: Show file list as a tree structure (use with -list)

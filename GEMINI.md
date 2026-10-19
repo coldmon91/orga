@@ -5,13 +5,13 @@
 **Orga** is a CLI-based file management tool that leverages local Large Language Models (LLMs) via Ollama to intelligently organize files. It scans a target directory, uses an LLM to classify files based on their filenames, and moves them into categorized subdirectories (e.g., documents, images, videos).
 
 ### Key Features
-*   **AI-Powered Classification:** Uses Ollama (defaulting to `gemma3n:e4b`) to determine file categories.
-*   **File Organization:** Moves files into structured folders (`organized/documents`, `organized/images`, etc.).
+*   **AI-Powered Classification:** Uses Ollama (defaulting to `gemma3n:e4b`) or TypeSafe Jev (`-backend jev`) to determine file categories.
+*   **File Organization:** Moves files into structured folders (`orga/documents`, `orga/images`, etc.).
 *   **File Listing:** Provides a utility to list files sorted by size, either as a flat list or a tree structure.
 *   **External Tools Integration:** Utilizes `fd` for fast file finding and `du` for directory size calculation (in list mode).
 
 ### Architecture
-*   **Entry Point:** `main.go` parses CLI arguments, handles the main application loop, interacts with the Ollama API, and performs file operations (finding, classifying, moving).
+*   **Entry Point:** `main.go` parses CLI arguments, handles the main application loop, and performs file operations (finding, moving). Classification lives behind the `categoryClassifier` interface in `classifier.go`.
 *   **Lister Module:** `modules/lister/lister.go` implements the file listing logic (flat and tree view), using `du` for directory sizes.
 *   **Dependencies:**
     *   **Go:** Main programming language (v1.24+).
@@ -50,9 +50,13 @@ go build -o orga.exe .
 ## Development Conventions
 
 *   **Code Structure:**
-    *   `main.go`: Contains the core business logic, including CLI flag parsing, HTTP client for Ollama, and file manipulation.
+    *   `main.go`: CLI flag parsing and file manipulation.
+    *   `classifier.go`: Backend selection and the file/directory classification flow.
+    *   `ollama_classifier.go`, `jev_classifier.go`: Ollama and TypeSafe Jev backends.
+    *   `dir_sampler.go`: Samples file names inside a directory whose name is inconclusive.
+    *   `dotenv.go`: Loads `.env` for `TYPESAFE_API_KEY`.
     *   `modules/`: Contains reusable sub-packages. Currently, `lister` is the only module.
 *   **External Commands:** The application relies on `exec.Command` to interface with system tools like `fd` and `du`. Ensure these are handled gracefully (though currently `lister` assumes `du` availability).
 *   **Error Handling:** Errors are generally printed to `stdout` with `fmt.Printf` followed by `os.Exit(1)` for critical failures, or logged as warnings for individual file processing errors.
 *   **Configuration:** Configuration is primarily done via CLI flags.
-*   **API Interaction:** Ollama interaction is done via raw HTTP POST requests using `net/http` and standard `encoding/json` for serialization.
+*   **API Interaction:** Ollama and Jev interaction is done via raw HTTP POST requests using `net/http` and standard `encoding/json` for serialization.
