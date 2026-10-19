@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Orga** is a CLI-based file management tool that leverages local Large Language Models (LLMs) via Ollama to intelligently organize files. It scans a target directory, uses an LLM to classify files based on their filenames, and moves them into categorized subdirectories (e.g., documents, images, videos).
+**Orga** is a CLI-based file management tool that uses an LLM to intelligently organize files. It scans a target directory, uses an LLM to classify files based on their filenames, and moves them into categorized subdirectories (e.g., documents, images, videos).
 
 ### Key Features
 *   **AI-Powered Classification:** Uses Ollama (defaulting to `gemma3n:e4b`) or TypeSafe Jev (`-backend jev`) to determine file categories.
@@ -15,7 +15,7 @@
 *   **Lister Module:** `modules/lister/lister.go` implements the file listing logic (flat and tree view), using `du` for directory sizes.
 *   **Dependencies:**
     *   **Go:** Main programming language (v1.24+).
-    *   **Ollama:** Local LLM server (required for classification).
+    *   **Ollama:** LLM server for the default `ollama` backend (not needed with `-backend jev`).
     *   **fd:** Fast file finding tool (required for finding files).
     *   **du:** Disk usage utility (required for list mode directory sizes).
 

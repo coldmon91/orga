@@ -4,7 +4,7 @@
 
 ## Overview
 
-- A file management tool using local LLMs.
+- A file management tool
 - Classifies files based on their names to determine their type.
 - Moves classified files to designated directories.
 - Top-level subdirectories are classified by name and moved as a whole; when the name is inconclusive, a sample of up to 20 files inside (2 levels deep) is used. With `-R`, files are organized individually instead.
